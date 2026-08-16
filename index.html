@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Materials Estimator — Boards, Tiles &amp; Plaster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EDEBE5; --surface:#FFFFFF; --surface-2:#F5F3EE; --line:#D9D4C8;
+    --ink:#201F1B; --ink-soft:#6B6558; --ink-faint:#98917F;
+    --blue:#2547A8; --blue-soft:#E7ECFA;
+    --amber:#B7691A; --amber-soft:#F7E9D6;
+    --teal:#1F6E5C; --teal-soft:#DEEFE9;
+    --red:#A23B2E;
+    --radius:10px; --radius-lg:16px;
+    --shadow:0 1px 2px rgba(32,31,27,0.06), 0 8px 20px -12px rgba(32,31,27,0.18);
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
+  body{-webkit-font-smoothing:antialiased;padding-bottom:96px;}
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-0.01em;}
+  .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select{font-family:inherit;}
+  a{color:var(--blue);}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+
+  /* ---------- Header ---------- */
+  .topbar{background:linear-gradient(180deg,#23252b 0%,#1a1c21 100%);color:#F2F0EA;border-bottom:3px solid var(--amber);}
+  .topbar-inner{max-width:1180px;margin:0 auto;padding:22px 20px 0;display:flex;align-items:flex-start;gap:14px;}
+  .brand-mark{font-size:26px;line-height:1;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;background:#2A2D34;border:1px solid #3B3E46;color:var(--amber);flex:none;}
+  .topbar h1{font-size:22px;color:#fff;}
+  .topbar .subtitle{margin:4px 0 0;font-size:13.5px;color:#B9B6AC;max-width:60ch;line-height:1.45;}
+
+  /* ---------- Tabs ---------- */
+  .tabbar{max-width:1180px;margin:18px auto 0;padding:0 20px;display:flex;gap:6px;overflow-x:auto;}
+  .tab-btn{
+    flex:none;background:#2A2D34;color:#B9B6AC;border:1px solid #3B3E46;border-bottom:none;
+    padding:10px 16px;font-size:13.5px;font-weight:600;border-radius:10px 10px 0 0;
+    font-family:'Space Grotesk',sans-serif;white-space:nowrap;
+  }
+  .tab-btn[aria-selected="true"]{background:var(--bg);color:var(--ink);border-color:var(--line);}
+  .tab-btn .tab-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;}
+  .tab-btn[data-tab="boards"] .tab-dot{background:var(--blue);}
+  .tab-btn[data-tab="tiles"] .tab-dot{background:var(--teal);}
+  .tab-btn[data-tab="plaster"] .tab-dot{background:var(--amber);}
+
+  .sheet[hidden]{display:none;}
+
+  /* ---------- Header toolbar (backup / export) ---------- */
+  .header-toolbar{max-width:1180px;margin:14px auto 0;padding:0 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .toolbar-btn{background:#2A2D34;color:#E9E7DF;border:1px solid #3B3E46;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;}
+  .toolbar-btn:hover{background:#34373f;}
+  .save-status{font-size:11.5px;color:#8E8A7E;margin-left:2px;}
+  .toolbar-note{max-width:1180px;margin:8px auto 0;padding:0 20px 4px;font-size:11.5px;color:#8E8A7E;line-height:1.5;}
+
+  .toast{
+    position:fixed;left:50%;bottom:100px;transform:translate(-50%,10px);
+    background:#1a1c21;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;
+    box-shadow:var(--shadow);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+  @media (min-width:980px){ .toast{bottom:24px;} }
+
+  /* ---------- Layout ---------- */
+  .layout{max-width:1180px;margin:0 auto;padding:20px 16px 40px;display:grid;grid-template-columns:1fr;gap:20px;}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px 18px 20px;box-shadow:var(--shadow);}
+  .panel-eyebrow{display:block;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:2px;font-family:'IBM Plex Mono',monospace;}
+  .sheet[data-tab="boards"] .panel-eyebrow{color:var(--blue);}
+  .sheet[data-tab="tiles"] .panel-eyebrow{color:var(--teal);}
+  .sheet[data-tab="plaster"] .panel-eyebrow{color:var(--amber);}
+  .panel-title{font-size:17px;margin-bottom:14px;}
+
+  /* ---------- Settings ---------- */
+  .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 16px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  .field .hint{display:block;font-size:11px;color:var(--ink-faint);margin-top:4px;line-height:1.4;}
+  .field input[type=number], .field select, .field input[type=text]{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    background:var(--surface-2);font-size:14.5px;color:var(--ink);
+  }
+  .field input:focus, .field select:focus{background:#fff;}
+  .custom-size-row{display:none;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+  .custom-size-row.show{display:grid;}
+
+  .field-prefix{position:relative;}
+  .field-prefix .pfx{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:14px;pointer-events:none;}
+  /* High-specificity rule: guarantees the padding survives even if a plain
+     `.field input[type=number]` rule elsewhere would otherwise win the cascade
+     (attribute selectors count toward specificity, which bit us once already). */
+  .field .field-prefix input[type=number]{padding-left:27px !important;}
+
+  .advanced-toggle{margin-top:16px;border-top:1px dashed var(--line);padding-top:12px;}
+  .advanced-toggle summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--blue);list-style:none;display:flex;align-items:center;gap:6px;}
+  .advanced-toggle summary::-webkit-details-marker{display:none;}
+  .advanced-toggle summary::before{content:'▸';transition:transform .15s;font-size:10px;}
+  .advanced-toggle[open] summary::before{transform:rotate(90deg);}
+  .advanced-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 16px;margin-top:14px;}
+
+  /* ---------- Rooms ---------- */
+  .rooms-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 2px;}
+  .rooms-header h2{font-size:17px;}
+  .rooms-header .count{font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-size:13px;font-weight:400;}
+  .rooms-header-btns{display:flex;gap:8px;}
+  .add-room-btn{background:var(--ink);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow);}
+  .add-room-btn:disabled{background:var(--ink-faint);cursor:not-allowed;}
+  .add-room-btn:not(:disabled):hover{background:#3a3833;}
+  .clear-all-btn{background:none;border:1px solid var(--line);color:var(--red);border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;}
+  .clear-all-btn:hover{background:#FBEBE7;border-color:#E3B8AE;}
+  .clear-all-btn.armed{background:var(--red);color:#fff;border-color:var(--red);}
+
+  .room-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px 16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .room-card-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .room-index{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;border-radius:6px;padding:4px 8px;flex:none;}
+  .sheet[data-tab="boards"] .room-index{color:var(--blue);background:var(--blue-soft);}
+  .sheet[data-tab="tiles"] .room-index{color:var(--teal);background:var(--teal-soft);}
+  .sheet[data-tab="plaster"] .room-index{color:var(--amber);background:var(--amber-soft);}
+  .room-name-wrap{flex:1;display:flex;align-items:center;gap:6px;min-width:0;border-bottom:1px dashed var(--line);padding-bottom:2px;}
+  .room-name-wrap:focus-within{border-bottom-color:var(--blue);}
+  .room-name{flex:1;border:none;background:transparent;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:var(--ink);padding:4px 2px;border-radius:6px;min-width:0;cursor:text;}
+  .room-name:focus{background:var(--surface-2);}
+  .room-name::placeholder{color:var(--ink-faint);font-weight:500;}
+  .edit-icon{flex:none;color:var(--ink-faint);font-size:12px;}
+  .remove-room{flex:none;background:none;border:1px solid var(--line);color:var(--red);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;}
+  .remove-room:hover{background:#FBEBE7;border-color:#E3B8AE;}
+
+  .room-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px;margin-bottom:14px;}
+  .field-sm label{font-size:11px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  .field-sm input[type=number]{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);font-size:14px;font-family:'IBM Plex Mono',monospace;}
+  .toggles-row{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:16px 20px;align-items:center;margin-top:2px;}
+  .check-field{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .check-field input{width:16px;height:16px;accent-color:var(--blue);flex:none;}
+
+  .room-output{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;border-top:1px solid var(--line);padding-top:14px;}
+  @media (max-width:600px){ .room-output{grid-template-columns:1fr;} }
+
+  .diagrams-stack{display:flex;flex-direction:column;gap:10px;}
+  .diagram-wrap{background:var(--surface-2);border-radius:10px;padding:10px;border:1px solid var(--line);}
+  .diagram-caption{font-size:10.5px;color:var(--ink-faint);margin-top:6px;line-height:1.4;}
+  .diagram-caption b{color:var(--ink-soft);}
+  .no-surface-note{font-size:12.5px;color:var(--ink-faint);padding:16px;text-align:center;background:var(--surface-2);border-radius:10px;border:1px dashed var(--line);}
+
+  .figures-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;align-content:start;}
+  .figure .flabel{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:600;}
+  .figure .fval{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-top:2px;}
+  .figure.qty .fval{color:var(--blue);}
+  .sheet[data-tab="tiles"] .figure.qty .fval{color:var(--teal);}
+  .sheet[data-tab="plaster"] .figure.qty .fval{color:var(--amber);}
+  .figure.cost .fval{color:var(--amber);}
+  .figure.full{grid-column:1/-1;border-top:1px dashed var(--line);margin-top:4px;padding-top:8px;}
+
+  /* ---------- Summary panel ---------- */
+  .summary-panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow);}
+  .summary-panel h2{font-size:16px;margin-bottom:2px;}
+  .summary-sub{font-size:11.5px;color:var(--ink-faint);margin-bottom:14px;}
+  .summary-totals{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:16px;}
+  .stotal .flabel{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:600;}
+  .stotal .fval{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;margin-top:2px;}
+  .stotal.headline{grid-column:1/-1;background:var(--blue-soft);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .stotal.headline .fval{font-size:24px;color:var(--blue);}
+  .sheet[data-tab="tiles"] .stotal.headline{background:var(--teal-soft);}
+  .sheet[data-tab="tiles"] .stotal.headline .fval{color:var(--teal);}
+  .sheet[data-tab="plaster"] .stotal.headline{background:var(--amber-soft);}
+  .sheet[data-tab="plaster"] .stotal.headline .fval{color:var(--amber);}
+  .stotal.cost-headline{background:var(--amber-soft);}
+  .stotal.cost-headline .fval{color:var(--amber);}
+
+  table.breakdown{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.breakdown th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-faint);font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line);}
+  table.breakdown td{padding:7px 6px;border-bottom:1px solid var(--surface-2);font-family:'IBM Plex Mono',monospace;}
+  table.breakdown td:first-child{font-family:'Inter',sans-serif;font-weight:600;}
+  table.breakdown tr:last-child td{border-bottom:none;}
+  table.breakdown th:not(:first-child), table.breakdown td:not(:first-child){text-align:right;}
+
+  /* ---------- Methodology ---------- */
+  .methodology{max-width:1180px;margin:0 auto;padding:0 16px 40px;display:grid;gap:12px;}
+  .methodology details{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px 18px;}
+  .methodology summary{cursor:pointer;font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:14.5px;}
+  .methodology .m-body{margin-top:12px;font-size:13.5px;line-height:1.65;color:var(--ink-soft);}
+  .methodology .m-body h4{font-size:12.5px;color:var(--ink);margin:14px 0 4px;font-family:'Inter',sans-serif;}
+  .methodology .m-body ul{margin:4px 0;padding-left:18px;}
+  .methodology .m-body code{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+
+  @media (min-width:980px){
+    .layout{grid-template-columns:1fr 340px;grid-template-areas:"settings settings" "rooms summary";align-items:start;}
+    .settings-panel{grid-area:settings;}
+    .rooms-section{grid-area:rooms;}
+    .summary-panel{grid-area:summary;position:sticky;top:20px;}
+    body{padding-bottom:40px;}
+  }
+
+  .mobile-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#1a1c21;color:#fff;padding:12px 16px calc(12px + env(safe-area-inset-bottom));align-items:center;justify-content:space-between;box-shadow:0 -6px 20px rgba(0,0,0,0.25);}
+  .mobile-bar .mb-figs{display:flex;gap:18px;}
+  .mobile-bar .mb-fig .flabel{font-size:9.5px;color:#9A9689;text-transform:uppercase;letter-spacing:0.06em;}
+  .mobile-bar .mb-fig .fval{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
+  .mobile-bar button{background:var(--amber);border:none;color:#1a1c21;font-weight:700;border-radius:8px;padding:9px 14px;font-size:12.5px;}
+  @media (max-width:979px){
+    .mobile-bar{display:flex;}
+    .summary-panel{display:none;}
+    .summary-panel.expanded{display:block;position:fixed;left:12px;right:12px;bottom:76px;z-index:41;max-height:70vh;overflow:auto;}
+  }
+</style>
+</head>
+<body>
+
+<noscript>
+  <div style="background:#A23B2E;color:#fff;padding:14px 18px;font-family:sans-serif;font-size:14px;">
+    This calculator needs JavaScript to run. If you're viewing this inside an email, Messages,
+    WhatsApp, or a file preview pane, save the file and open it directly in Safari or Chrome instead.
+  </div>
+</noscript>
+<div id="jsErrorBanner" style="display:none;background:#A23B2E;color:#fff;padding:14px 18px;font-family:sans-serif;font-size:14px;"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="brand-mark">▦</span>
+    <div>
+      <h1>Materials Estimator</h1>
+      <p class="subtitle">Room-by-room take-offs for plasterboard, tiles and multi-finish plaster. Boards and tiles use real layout tiling across each surface — not a straight area ÷ unit-area guess.</p>
+    </div>
+  </div>
+  <nav class="tabbar" role="tablist" aria-label="Material sheets">
+    <button class="tab-btn" role="tab" data-tab="boards" aria-selected="true"><span class="tab-dot"></span>Plasterboard</button>
+    <button class="tab-btn" role="tab" data-tab="tiles" aria-selected="false"><span class="tab-dot"></span>Tiles</button>
+    <button class="tab-btn" role="tab" data-tab="plaster" aria-selected="false"><span class="tab-dot"></span>Multi-finish plaster</button>
+  </nav>
+  <div class="header-toolbar">
+    <button class="toolbar-btn" id="btnCopy" title="Copy the full estimate as text">📋 Copy summary</button>
+    <span class="save-status" id="saveStatus"></span>
+  </div>
+</header>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ================= SHEET 1: PLASTERBOARD ================= -->
+<section class="sheet" id="sheet-boards" data-tab="boards">
+  <main class="layout">
+    <section class="panel settings-panel">
+      <h2 class="panel-title"><span class="panel-eyebrow">Spec</span>Job settings</h2>
+      <div class="settings-grid">
+        <div class="field">
+          <label for="b-sizePreset">Board size</label>
+          <select id="b-sizePreset">
+            <option value="2400x1200">2400 × 1200 mm (8×4 ft) — standard</option>
+            <option value="2700x1200">2700 × 1200 mm (9×4 ft)</option>
+            <option value="3000x1200">3000 × 1200 mm (10×4 ft)</option>
+            <option value="1800x900">1800 × 900 mm (6×3 ft)</option>
+            <option value="custom">Custom size…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="b-wastage">Wastage allowance</label>
+          <div class="field-prefix"><input type="number" id="b-wastage" value="10" min="0" max="100" step="1"><span class="pfx" style="left:auto;right:10px;">%</span></div>
+          <span class="hint">Extra margin on top of the tiling result, for cutting loss, breakage and mistakes.</span>
+        </div>
+        <div class="field">
+          <label for="b-cost">Cost per board</label>
+          <div class="field-prefix"><span class="pfx">£</span><input type="number" id="b-cost" value="14.00" min="0" step="0.01"></div>
+        </div>
+        <div class="custom-size-row" id="b-customRow">
+          <div class="field"><label for="b-customW">Custom width (mm)</label><input type="number" id="b-customW" value="1200" min="100" step="10"></div>
+          <div class="field"><label for="b-customL">Custom length (mm)</label><input type="number" id="b-customL" value="2400" min="100" step="10"></div>
+        </div>
+      </div>
+      <details class="advanced-toggle">
+        <summary>Advanced — opening size assumptions</summary>
+        <div class="advanced-grid">
+          <div class="field"><label for="b-doorW">Door width (m)</label><input type="number" id="b-doorW" value="0.90" min="0" step="0.01"></div>
+          <div class="field"><label for="b-doorH">Door height (m)</label><input type="number" id="b-doorH" value="2.10" min="0" step="0.01"><span class="hint">Standard UK internal door opening ≈ 0.9 × 2.1 m. Edit to match your actual doors.</span></div>
+          <div class="field"><label for="b-winW">Window width (m)</label><input type="number" id="b-winW" value="1.20" min="0" step="0.01"></div>
+          <div class="field"><label for="b-winH">Window height (m)</label><input type="number" id="b-winH" value="1.20" min="0" step="0.01"><span class="hint">Rough average domestic window. Edit per job if yours differ.</span></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="rooms-section">
+      <div class="rooms-header"><h2>Rooms <span class="count" id="b-roomCount"></span></h2>
+        <div class="rooms-header-btns"><button class="clear-all-btn" id="b-clearAll">Clear all</button><button class="add-room-btn" id="b-addRoom">+ Add room</button></div>
+      </div>
+      <div id="b-roomsContainer"></div>
+    </section>
+
+    <aside class="summary-panel" id="b-summaryPanel">
+      <h2>Total estimate</h2><p class="summary-sub">Across all rooms, boards included</p>
+      <div class="summary-totals" id="b-summaryTotals"></div>
+      <table class="breakdown"><thead><tr><th>Room</th><th>Net m²</th><th>Boards</th><th>Cost</th></tr></thead><tbody id="b-breakdownBody"></tbody></table>
+    </aside>
+  </main>
+</section>
+
+<!-- ================= SHEET 2: TILES ================= -->
+<section class="sheet" id="sheet-tiles" data-tab="tiles" hidden>
+  <main class="layout">
+    <section class="panel settings-panel">
+      <h2 class="panel-title"><span class="panel-eyebrow">Spec</span>Job settings</h2>
+      <div class="settings-grid">
+        <div class="field">
+          <label for="t-sizePreset">Tile size</label>
+          <select id="t-sizePreset">
+            <option value="100x200">100 × 200 mm (metro/subway)</option>
+            <option value="200x200">200 × 200 mm</option>
+            <option value="250x400">250 × 400 mm</option>
+            <option value="300x300" selected>300 × 300 mm</option>
+            <option value="300x600">300 × 600 mm</option>
+            <option value="600x600">600 × 600 mm</option>
+            <option value="custom">Custom size…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="t-wastage">Wastage allowance</label>
+          <div class="field-prefix"><input type="number" id="t-wastage" value="10" min="0" max="100" step="1"><span class="pfx" style="left:auto;right:10px;">%</span></div>
+          <span class="hint">Covers cuts around corners/fittings. Diagonal or herringbone lays typically need more — increase if so.</span>
+        </div>
+        <div class="field">
+          <label for="t-cost">Cost per tile</label>
+          <div class="field-prefix"><span class="pfx">£</span><input type="number" id="t-cost" value="2.50" min="0" step="0.01"></div>
+        </div>
+        <div class="field">
+          <label for="t-perBox">Tiles per box</label>
+          <input type="number" id="t-perBox" value="10" min="1" step="1">
+          <span class="hint">Used to also show boxes required, since tiles are bought by the box.</span>
+        </div>
+        <div class="custom-size-row" id="t-customRow">
+          <div class="field"><label for="t-customW">Custom width (mm)</label><input type="number" id="t-customW" value="300" min="20" step="5"></div>
+          <div class="field"><label for="t-customL">Custom length (mm)</label><input type="number" id="t-customL" value="300" min="20" step="5"></div>
+        </div>
+      </div>
+      <details class="advanced-toggle">
+        <summary>Advanced — opening size assumptions</summary>
+        <div class="advanced-grid">
+          <div class="field"><label for="t-doorW">Door width (m)</label><input type="number" id="t-doorW" value="0.90" min="0" step="0.01"></div>
+          <div class="field"><label for="t-doorH">Door height (m)</label><input type="number" id="t-doorH" value="2.10" min="0" step="0.01"></div>
+          <div class="field"><label for="t-winW">Window width (m)</label><input type="number" id="t-winW" value="1.20" min="0" step="0.01"></div>
+          <div class="field"><label for="t-winH">Window height (m)</label><input type="number" id="t-winH" value="1.20" min="0" step="0.01">
+            <span class="hint">Openings are only deducted up to the tiled height on walls (see room settings) — a window entirely above a half-height splashback isn't deducted.</span>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="rooms-section">
+      <div class="rooms-header"><h2>Rooms <span class="count" id="t-roomCount"></span></h2>
+        <div class="rooms-header-btns"><button class="clear-all-btn" id="t-clearAll">Clear all</button><button class="add-room-btn" id="t-addRoom">+ Add room</button></div>
+      </div>
+      <div id="t-roomsContainer"></div>
+    </section>
+
+    <aside class="summary-panel" id="t-summaryPanel">
+      <h2>Total estimate</h2><p class="summary-sub">Across all rooms, tiles included</p>
+      <div class="summary-totals" id="t-summaryTotals"></div>
+      <table class="breakdown"><thead><tr><th>Room</th><th>Net m²</th><th>Tiles</th><th>Cost</th></tr></thead><tbody id="t-breakdownBody"></tbody></table>
+    </aside>
+  </main>
+</section>
+
+<!-- ================= SHEET 3: MULTI-FINISH PLASTER ================= -->
+<section class="sheet" id="sheet-plaster" data-tab="plaster" hidden>
+  <main class="layout">
+    <section class="panel settings-panel">
+      <h2 class="panel-title"><span class="panel-eyebrow">Spec</span>Job settings</h2>
+      <div class="settings-grid">
+        <div class="field">
+          <label for="p-bagSize">Bag size (kg)</label>
+          <input type="number" id="p-bagSize" value="25" min="1" step="1">
+        </div>
+        <div class="field">
+          <label for="p-refCoverage">Coverage per bag (m²)</label>
+          <input type="number" id="p-refCoverage" value="10" min="0.1" step="0.1">
+          <span class="hint">Default is British Gypsum Thistle Multi-Finish's published figure: 10 m² per 25 kg bag at 2 mm. Check your own bag/brand.</span>
+        </div>
+        <div class="field">
+          <label for="p-refThickness">…at thickness (mm)</label>
+          <input type="number" id="p-refThickness" value="2" min="0.1" step="0.1">
+        </div>
+        <div class="field">
+          <label for="p-appThickness">Your application thickness (mm)</label>
+          <input type="number" id="p-appThickness" value="2" min="0.1" step="0.1">
+          <span class="hint">Coverage is scaled from the reference figure: thicker skim = fewer m² per bag.</span>
+        </div>
+        <div class="field">
+          <label for="p-wastage">Wastage allowance</label>
+          <div class="field-prefix"><input type="number" id="p-wastage" value="10" min="0" max="100" step="1"><span class="pfx" style="left:auto;right:10px;">%</span></div>
+          <span class="hint">Covers material dropped while trowelling, mixed plaster that sets unused, and board edges.</span>
+        </div>
+        <div class="field">
+          <label for="p-cost">Cost per bag</label>
+          <div class="field-prefix"><span class="pfx">£</span><input type="number" id="p-cost" value="9.50" min="0" step="0.01"></div>
+        </div>
+      </div>
+      <details class="advanced-toggle">
+        <summary>Advanced — opening size assumptions</summary>
+        <div class="advanced-grid">
+          <div class="field"><label for="p-doorW">Door width (m)</label><input type="number" id="p-doorW" value="0.90" min="0" step="0.01"></div>
+          <div class="field"><label for="p-doorH">Door height (m)</label><input type="number" id="p-doorH" value="2.10" min="0" step="0.01"></div>
+          <div class="field"><label for="p-winW">Window width (m)</label><input type="number" id="p-winW" value="1.20" min="0" step="0.01"></div>
+          <div class="field"><label for="p-winH">Window height (m)</label><input type="number" id="p-winH" value="1.20" min="0" step="0.01"></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="rooms-section">
+      <div class="rooms-header"><h2>Rooms <span class="count" id="p-roomCount"></span></h2>
+        <div class="rooms-header-btns"><button class="clear-all-btn" id="p-clearAll">Clear all</button><button class="add-room-btn" id="p-addRoom">+ Add room</button></div>
+      </div>
+      <div id="p-roomsContainer"></div>
+    </section>
+
+    <aside class="summary-panel" id="p-summaryPanel">
+      <h2>Total estimate</h2><p class="summary-sub">Across all rooms, bags included</p>
+      <div class="summary-totals" id="p-summaryTotals"></div>
+      <table class="breakdown"><thead><tr><th>Room</th><th>Net m²</th><th>Bags</th><th>Cost</th></tr></thead><tbody id="p-breakdownBody"></tbody></table>
+    </aside>
+  </main>
+</section>
+
+<footer class="methodology">
+  <details>
+    <summary>How the plasterboard numbers are worked out</summary>
+    <div class="m-body">
+      <h4>1. Wall area</h4>
+      <p>Perimeter <code>2 × (length + width)</code> × ceiling height, minus door/window area (quantity × the sizes set under "Advanced"), gives <b>net wall area</b>.</p>
+      <h4>2. Board layout, not area ÷ board area</h4>
+      <p>The wall run is unwrapped into one continuous strip and tiled with whole boards in <b>both</b> possible orientations — standing tall (fewer horizontal joints) and turned on their side (used when a wall is taller than one board). Whichever needs fewer whole boards is used, the same call a plasterer makes on site.</p>
+      <p>Openings only remove a whole board where their combined area could plausibly free one up (<code>⌊opening area ÷ board area⌋</code>) — conservative, since offcuts are often reused elsewhere.</p>
+      <h4>3. Ceilings, wastage</h4>
+      <p>An included ceiling is tiled the same way as a flat rectangle. <b>Wastage allowance</b> = net area × wastage %; <b>gross area</b> = net + wastage (a reference figure). The board count itself applies the same wastage % on top of the tiled total, rounded up.</p>
+      <h4>Limits</h4>
+      <ul>
+        <li>Openings are deducted by area/count only — the diagrams are illustrative, not a cutting plan.</li>
+        <li>Each room is calculated independently; offcuts aren't shared between rooms (the safer assumption for ordering).</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>How the tile numbers are worked out</summary>
+    <div class="m-body">
+      <h4>1. Which surfaces</h4>
+      <p>Walls are tiled up to the height you set per room (defaults to full ceiling height, but editable for splashbacks/half-height tiling). The floor is optional and tiled separately as a flat rectangle.</p>
+      <h4>2. Layout, both orientations tested</h4>
+      <p>Same approach as boards: the wall run (or floor rectangle) is tiled with the chosen tile size in both orientations, and whichever needs fewer whole tiles is used.</p>
+      <h4>3. Openings capped to the tiled height</h4>
+      <p>Because walls can be tiled to a partial height, a door or window is only deducted up to <b>min(opening height, tiled wall height)</b> — a window entirely above a half-height splashback contributes nothing to the deduction. This is more precise than the plasterboard sheet, where boards always run full height.</p>
+      <h4>4. Boxes</h4>
+      <p>Boxes required = tiles required ÷ tiles per box, rounded up — set "tiles per box" to match what you're actually buying.</p>
+      <h4>Limits</h4>
+      <p>As with boards, opening deductions are area/count-based, not positional, and each room is calculated independently.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>How the multi-finish plaster numbers are worked out</summary>
+    <div class="m-body">
+      <h4>Why there's no layout optimisation on this sheet</h4>
+      <p>Multi-finish (skim) plaster is trowelled on wet, not cut to size — there's no board or tile to orient, so unlike the other two sheets this is a straightforward <b>gross area ÷ coverage per bag</b> calculation, rounded up. Applying a tiling algorithm here would be pretending precision that doesn't exist for a wet trowel finish.</p>
+      <h4>Coverage default and sourcing</h4>
+      <p>The default (10 m² per 25 kg bag at 2 mm) is British Gypsum's published figure for Thistle Multi-Finish, confirmed across several independent retailer listings. One retailer FAQ page states "1.5 m² per bag" for the same product, which conflicts with every other source found (including one citing the manufacturer's own product data sheet) and reads as a typo rather than a genuine spec — <b>moderate-to-high confidence</b> the 10 m²/2 mm figure is correct, but check the bag or datasheet for your actual product, since coverage varies by brand and by how heavily you build up the coat.</p>
+      <h4>Thickness scaling</h4>
+      <p>If your application thickness differs from the reference thickness, coverage is scaled proportionally: <code>effective coverage = reference coverage × (reference thickness ÷ your thickness)</code>. This is a linear approximation — real coverage vs. thickness isn't perfectly linear at the extremes, so treat it as a reasoned estimate, not a guarantee.</p>
+      <h4>Openings and ceilings</h4>
+      <p>Door/window area is deducted from wall area the same way as the plasterboard sheet (full opening height, since skim is a full-height finish). Ceilings are optional per room, since multi-finish is commonly skimmed onto both.</p>
+    </div>
+  </details>
+</footer>
+
+<div class="mobile-bar" id="mobileBar">
+  <div class="mb-figs">
+    <div class="mb-fig"><div class="flabel" id="mbLabel">Boards</div><div class="fval mono" id="mbQty">0</div></div>
+    <div class="mb-fig"><div class="flabel">Cost</div><div class="fval mono" id="mbCost">£0</div></div>
+  </div>
+  <button id="mbToggle">View breakdown</button>
+</div>
+
+<script>
+window.addEventListener("error", function(e){
+  var b = document.getElementById("jsErrorBanner");
+  if (b){
+    b.style.display = "block";
+    b.textContent = "Something went wrong running the calculator: " + e.message + " — try reloading, or opening this file directly in Safari/Chrome rather than a preview pane.";
+  }
+});
+
+(function(){
+  "use strict";
+
+  /* ============ Shared helpers ============ */
+  function fmtArea(n){ return (Math.round(n*100)/100).toFixed(2) + " m²"; }
+  function fmtNum(n){ return Math.round(n).toString(); }
+  function fmtCost(n){ return "£" + (Number(n)||0).toLocaleString("en-GB", {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function num(v, fallback){ var n = Number(v); return isNaN(n) ? (fallback||0) : n; }
+
+  // Two-tap confirm that needs no native dialog API (window.confirm silently
+  // no-ops in some sandboxed/embedded webviews, which looked exactly like a
+  // dead button). First tap arms the button and waits; a second tap within
+  // the window actually runs the action; anything else disarms it.
+  function armTwoTapConfirm(btn, defaultLabel, armedLabel, onConfirmed){
+    var armed = false, timer = null;
+    function disarm(){ armed = false; btn.textContent = defaultLabel; btn.classList.remove("armed"); clearTimeout(timer); }
+    btn.textContent = defaultLabel;
+    btn.addEventListener("click", function(){
+      if (!armed){
+        armed = true; btn.textContent = armedLabel; btn.classList.add("armed");
+        timer = setTimeout(disarm, 3500);
+      } else {
+        disarm();
+        onConfirmed();
+      }
+    });
+  }
+
+  // Tile a rectangle (runLength x spanHeight) with units (unitW x unitL),
+  // trying both orientations and keeping whichever needs fewer whole units.
+  function tileRect(runLength, spanHeight, unitW, unitL){
+    function attempt(vertDim, horizDim, label){
+      var rows = Math.max(1, Math.ceil(spanHeight / vertDim));
+      var cols = Math.max(1, Math.ceil(runLength / horizDim));
+      return { rows: rows, cols: cols, total: rows*cols, vertDim: vertDim, horizDim: horizDim, label: label };
+    }
+    var a = attempt(unitL, unitW, "length-vertical");
+    var b = attempt(unitW, unitL, "width-vertical");
+    return a.total <= b.total ? a : b;
+  }
+
+  function gridSvg(tiling, runLen, spanH){
+    var scale = 340 / Math.max(runLen, 0.3);
+    var vbW = Math.max(runLen,0.3) * scale, vbH = Math.max(spanH,0.1) * scale;
+    var cellW = tiling.horizDim * scale, cellH = tiling.vertDim * scale;
+    var rects = "";
+    for (var r=0; r<tiling.rows; r++){
+      for (var c=0; c<tiling.cols; c++){
+        var x = c*cellW, y = r*cellH;
+        var w = Math.min(cellW, vbW-x), hh = Math.min(cellH, vbH-y);
+        if (w<=0||hh<=0) continue;
+        var isPartial = (w < cellW-0.5) || (hh < cellH-0.5);
+        rects += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+hh.toFixed(1)+
+          '" fill="'+(isPartial?"#F7E9D6":"#E7ECFA")+'" stroke="#B9C4E6" stroke-width="1"/>';
+      }
+    }
+    return '<svg viewBox="0 0 '+vbW.toFixed(1)+' '+vbH.toFixed(1)+'" width="100%" height="120" preserveAspectRatio="xMidYMid meet">' +
+      '<rect x="0" y="0" width="'+vbW.toFixed(1)+'" height="'+vbH.toFixed(1)+'" fill="#fff" stroke="#D9D4C8"/>' + rects + '</svg>';
+  }
+
+  var MAX_ROOMS = 10;
+
+  /* ============================================================
+     Controller factory shared by the boards and tiles sheets —
+     both are "tile a surface with a rectangular unit" problems,
+     they just differ in labels, presets, and which surfaces apply.
+     ============================================================ */
+  function createTilingSheet(cfg){
+    var seq = 0;
+    var presetMap = {}; cfg.presets.forEach(function(p){ presetMap[p.id]=p; });
+
+    var $ = function(sel){ return document.querySelector(cfg.prefix + sel); };
+    var sizePreset = $("-sizePreset"), customRow = $("-customRow"), customW = $("-customW"), customL = $("-customL");
+    var wastage = $("-wastage"), cost = $("-cost");
+    var perBox = cfg.hasBoxes ? $("-perBox") : null;
+    var doorW = $("-doorW"), doorH = $("-doorH"), winW = $("-winW"), winH = $("-winH");
+    var roomsContainer = document.getElementById(cfg.key + "-roomsContainer");
+    var roomCountEl = document.getElementById(cfg.key + "-roomCount");
+    var addRoomBtn = document.getElementById(cfg.key + "-addRoom");
+    var clearAllBtn = document.getElementById(cfg.key + "-clearAll");
+    var summaryTotals = document.getElementById(cfg.key + "-summaryTotals");
+    var breakdownBody = document.getElementById(cfg.key + "-breakdownBody");
+
+    var state = { sizePreset: cfg.presets[0].id, customW: cfg.presets[0].w, customL: cfg.presets[0].l, rooms: [] };
+    customW.value = state.customW; customL.value = state.customL;
+
+    function makeRoom(name){
+      seq++;
+      var r = { id: cfg.key+"r"+seq, name: name || ("Room "+seq), length:4.0, width:3.5, height:2.4, doors:1, windows:1 };
+      r[cfg.secondSurface.field] = cfg.secondSurface.defaultOn;
+      if (cfg.wallHeightMode === "custom"){ r.wallHeight = r.height; r.tileWalls = true; }
+      return r;
+    }
+    state.rooms.push(makeRoom(cfg.seedNames[0]));
+    state.rooms.push(makeRoom(cfg.seedNames[1]));
+
+    function getUnitDimsM(){
+      var preset = presetMap[state.sizePreset];
+      var wMM, lMM;
+      if (!preset || preset.id === "custom"){ wMM = state.customW; lMM = state.customL; }
+      else { wMM = preset.w; lMM = preset.l; }
+      wMM = Math.max(10, num(wMM, preset ? preset.w : 300));
+      lMM = Math.max(10, num(lMM, preset ? preset.l : 300));
+      return { w: wMM/1000, l: lMM/1000 };
+    }
+
+    function calcRoom(room){
+      var unit = getUnitDimsM();
+      var unitArea = unit.w * unit.l;
+      var wastageFrac = Math.max(0, num(wastage.value,10))/100;
+      var L = Math.max(0, num(room.length)), W = Math.max(0, num(room.width)), H = Math.max(0, num(room.height));
+      var perimeter = 2*(L+W);
+
+      var wallHeightUsed = cfg.wallHeightMode === "custom"
+        ? Math.min(Math.max(0, num(room.wallHeight, H)), H)
+        : H;
+      var wallsActive = cfg.wallHeightMode === "custom" ? !!room.tileWalls : true;
+
+      var doorArea = Math.max(0,num(doorW.value))*Math.max(0,num(doorH.value));
+      var winArea = Math.max(0,num(winW.value))*Math.max(0,num(winH.value));
+      var doorAreaCapped = cfg.capOpeningsByHeight ? Math.max(0,num(doorW.value))*Math.min(Math.max(0,num(doorH.value)), wallHeightUsed) : doorArea;
+      var winAreaCapped = cfg.capOpeningsByHeight ? Math.max(0,num(winW.value))*Math.min(Math.max(0,num(winH.value)), wallHeightUsed) : winArea;
+      var openingsArea = (num(room.doors))*doorAreaCapped + (num(room.windows))*winAreaCapped;
+
+      var wallGross=0, wallNet=0, wallWastageArea=0, wallGrossFinal=0, wallTiling=null, wallQtyFinal=0;
+      if (wallsActive && wallHeightUsed > 0){
+        wallGross = perimeter * wallHeightUsed;
+        openingsArea = Math.min(openingsArea, wallGross*0.9);
+        wallNet = Math.max(wallGross - openingsArea, 0);
+        wallWastageArea = wallNet * wastageFrac;
+        wallGrossFinal = wallNet + wallWastageArea;
+        wallTiling = tileRect(perimeter, wallHeightUsed, unit.w, unit.l);
+        var savedByOpenings = Math.floor(openingsArea/unitArea);
+        var netTiled = Math.max(wallTiling.total - savedByOpenings, Math.ceil(wallNet/unitArea));
+        wallQtyFinal = Math.ceil(netTiled * (1+wastageFrac));
+      } else { openingsArea = 0; }
+
+      var secondActive = !!room[cfg.secondSurface.field];
+      var secNet=0, secWastageArea=0, secGrossFinal=0, secTiling=null, secQtyFinal=0;
+      if (secondActive){
+        secNet = L*W;
+        secWastageArea = secNet*wastageFrac;
+        secGrossFinal = secNet+secWastageArea;
+        secTiling = tileRect(L, W, unit.w, unit.l);
+        secQtyFinal = Math.ceil(secTiling.total * (1+wastageFrac));
+      }
+
+      var netArea = wallNet+secNet, wastageArea = wallWastageArea+secWastageArea, grossArea = wallGrossFinal+secGrossFinal;
+      var qty = wallQtyFinal+secQtyFinal;
+      var costEach = Math.max(0, num(cost.value));
+      var totalCost = qty*costEach;
+      var boxes = cfg.hasBoxes ? Math.ceil(qty / Math.max(1, num(perBox.value,1))) : null;
+
+      return {
+        unit:unit, unitArea:unitArea, perimeter:perimeter, wallHeightUsed:wallHeightUsed, wallsActive:wallsActive,
+        wallGross:wallGross, openingsArea:openingsArea, wallNet:wallNet, wallWastageArea:wallWastageArea, wallGrossFinal:wallGrossFinal,
+        wallTiling:wallTiling, wallQtyFinal:wallQtyFinal,
+        secondActive:secondActive, secNet:secNet, secGrossFinal:secGrossFinal, secTiling:secTiling, secQtyFinal:secQtyFinal,
+        netArea:netArea, wastageArea:wastageArea, grossArea:grossArea, qty:qty, cost:totalCost, boxes:boxes
+      };
+    }
+
+    function diagramsHtml(room, calc){
+      var parts = [];
+      if (calc.wallsActive && calc.wallTiling){
+        var orientLabel = calc.wallTiling.label === "length-vertical" ? "long edge vertical" : "long edge horizontal";
+        var cap = "Walls, unwrapped run: <b>"+calc.perimeter.toFixed(2)+" m</b> × <b>"+calc.wallHeightUsed.toFixed(2)+" m</b> tiled height, "+orientLabel+
+          " — <b>"+calc.wallTiling.cols+"×"+calc.wallTiling.rows+"</b> grid ("+calc.wallTiling.total+" "+cfg.itemPlural+" before opening/wastage adjustment).";
+        parts.push('<div class="diagram-wrap">'+gridSvg(calc.wallTiling, calc.perimeter, calc.wallHeightUsed)+'<div class="diagram-caption">'+cap+'</div></div>');
+      }
+      if (calc.secondActive && calc.secTiling){
+        var L = Math.max(0,num(room.length)), W = Math.max(0,num(room.width));
+        var orientLabel2 = calc.secTiling.label === "length-vertical" ? "long edge along width" : "long edge along length";
+        var cap2 = cfg.secondSurface.diagramLabel+": <b>"+L.toFixed(2)+" m × "+W.toFixed(2)+" m</b>, "+orientLabel2+
+          " — <b>"+calc.secTiling.cols+"×"+calc.secTiling.rows+"</b> grid ("+calc.secTiling.total+" "+cfg.itemPlural+" before wastage).";
+        parts.push('<div class="diagram-wrap">'+gridSvg(calc.secTiling, L, W)+'<div class="diagram-caption">'+cap2+'</div></div>');
+      }
+      if (!parts.length){ parts.push('<div class="no-surface-note">No surfaces selected for this room yet.</div>'); }
+      return '<div class="diagrams-stack">'+parts.join("")+'</div>';
+    }
+
+    function figuresHtml(calc){
+      var qtyRow = '<div class="figure qty"><div class="flabel">'+cfg.itemLabelCap+'s required</div><div class="fval">'+fmtNum(calc.qty)+'</div></div>';
+      var boxRow = cfg.hasBoxes ? '<div class="figure"><div class="flabel">Boxes required</div><div class="fval">'+fmtNum(calc.boxes)+'</div></div>' : "";
+      return '<div class="figures-grid">' +
+        '<div class="figure"><div class="flabel">Net area</div><div class="fval">'+fmtArea(calc.netArea)+'</div></div>' +
+        '<div class="figure"><div class="flabel">Wastage allowance</div><div class="fval">'+fmtArea(calc.wastageArea)+'</div></div>' +
+        '<div class="figure"><div class="flabel">Gross area</div><div class="fval">'+fmtArea(calc.grossArea)+'</div></div>' +
+        qtyRow + boxRow +
+        '<div class="figure cost full"><div class="flabel">Estimated cost</div><div class="fval">'+fmtCost(calc.cost)+'</div></div>' +
+        '</div>';
+    }
+
+    function roomInputsHtml(room){
+      var extra = "";
+      if (cfg.wallHeightMode === "custom"){
+        extra += '<div class="field-sm"><label>Tiled wall height (m)</label><input type="number" data-field="wallHeight" value="'+room.wallHeight+'" min="0" step="0.01"></div>';
+      }
+      var toggles = '<div class="toggles-row">';
+      if (cfg.wallHeightMode === "custom"){
+        toggles += '<label class="check-field"><input type="checkbox" data-field="tileWalls" '+(room.tileWalls?"checked":"")+'> Tile the walls</label>';
+      }
+      toggles += '<label class="check-field"><input type="checkbox" data-field="'+cfg.secondSurface.field+'" '+(room[cfg.secondSurface.field]?"checked":"")+'> '+cfg.secondSurface.label+'</label>';
+      toggles += '</div>';
+      return (
+        '<div class="field-sm"><label>Length (m)</label><input type="number" data-field="length" value="'+room.length+'" min="0" step="0.01"></div>' +
+        '<div class="field-sm"><label>Width (m)</label><input type="number" data-field="width" value="'+room.width+'" min="0" step="0.01"></div>' +
+        '<div class="field-sm"><label>Height (m)</label><input type="number" data-field="height" value="'+room.height+'" min="0" step="0.01"></div>' +
+        '<div class="field-sm"><label>Doors (qty)</label><input type="number" data-field="doors" value="'+room.doors+'" min="0" step="1"></div>' +
+        '<div class="field-sm"><label>Windows (qty)</label><input type="number" data-field="windows" value="'+room.windows+'" min="0" step="1"></div>' +
+        extra + toggles
+      );
+    }
+
+    function renderRooms(){
+      roomCountEl.textContent = state.rooms.length + " / " + MAX_ROOMS;
+      addRoomBtn.disabled = state.rooms.length >= MAX_ROOMS;
+      roomsContainer.innerHTML = state.rooms.map(function(room, idx){
+        var calc = calcRoom(room);
+        return '<div class="room-card" data-id="'+room.id+'">' +
+          '<div class="room-card-header"><span class="room-index">R'+(idx+1)+'</span>' +
+          '<div class="room-name-wrap"><input class="room-name" type="text" data-field="name" value="'+escapeHtml(room.name)+'" aria-label="Room name" autocomplete="off" enterkeyhint="done"><span class="edit-icon" aria-hidden="true">✎</span></div>' +
+          '<button class="remove-room" data-action="remove">Remove</button></div>' +
+          '<div class="room-inputs">'+roomInputsHtml(room)+'</div>' +
+          '<div class="room-output">'+diagramsHtml(room,calc)+figuresHtml(calc)+'</div>' +
+        '</div>';
+      }).join("");
+      renderSummary();
+    }
+
+    function updateRoomOutputOnly(card, room){
+      var calc = calcRoom(room);
+      var out = card.querySelector(".room-output");
+      out.innerHTML = diagramsHtml(room,calc) + figuresHtml(calc);
+    }
+
+    function renderSummary(){
+      var totalNet=0,totalWaste=0,totalGross=0,totalQty=0,totalCost=0,totalBoxes=0;
+      var rows = state.rooms.map(function(room){
+        var c = calcRoom(room);
+        totalNet+=c.netArea; totalWaste+=c.wastageArea; totalGross+=c.grossArea; totalQty+=c.qty; totalCost+=c.cost;
+        if (cfg.hasBoxes) totalBoxes+=c.boxes;
+        return '<tr><td>'+escapeHtml(room.name)+'</td><td>'+c.netArea.toFixed(2)+'</td><td>'+c.qty+'</td><td>'+fmtCost(c.cost)+'</td></tr>';
+      });
+      breakdownBody.innerHTML = rows.join("") || '<tr><td colspan="4" style="font-family:Inter,sans-serif;color:var(--ink-faint);">No rooms yet</td></tr>';
+
+      var boxLine = cfg.hasBoxes ? '<div class="stotal"><div class="flabel">Boxes required</div><div class="fval">'+fmtNum(totalBoxes)+'</div></div>' : "";
+      summaryTotals.innerHTML =
+        '<div class="stotal"><div class="flabel">Net area</div><div class="fval">'+fmtArea(totalNet)+'</div></div>' +
+        '<div class="stotal"><div class="flabel">Wastage allowance</div><div class="fval">'+fmtArea(totalWaste)+'</div></div>' +
+        '<div class="stotal"><div class="flabel">Gross area</div><div class="fval">'+fmtArea(totalGross)+'</div></div>' +
+        boxLine +
+        '<div class="stotal headline"><div><div class="flabel">'+cfg.itemLabelCap+'s to buy</div></div><div class="fval">'+fmtNum(totalQty)+'</div></div>' +
+        '<div class="stotal headline cost-headline"><div><div class="flabel">Total estimated cost</div></div><div class="fval">'+fmtCost(totalCost)+'</div></div>';
+
+      cfg.onTotals(totalQty, totalCost);
+      triggerAutosave();
+    }
+
+    function clone(o){ var c={}; for (var k in o){ if (o.hasOwnProperty(k)) c[k]=o[k]; } return c; }
+
+    function getState(){
+      return {
+        sizePreset: state.sizePreset, customW: state.customW, customL: state.customL,
+        wastage: wastage.value, cost: cost.value,
+        perBox: perBox ? perBox.value : undefined,
+        doorW: doorW.value, doorH: doorH.value, winW: winW.value, winH: winH.value,
+        rooms: state.rooms.map(clone)
+      };
+    }
+    function setState(data){
+      if (!data) return;
+      if (data.sizePreset!=null){ state.sizePreset=data.sizePreset; sizePreset.value=data.sizePreset; customRow.classList.toggle("show", data.sizePreset==="custom"); }
+      if (data.customW!=null){ state.customW=data.customW; customW.value=data.customW; }
+      if (data.customL!=null){ state.customL=data.customL; customL.value=data.customL; }
+      if (data.wastage!=null) wastage.value=data.wastage;
+      if (data.cost!=null) cost.value=data.cost;
+      if (perBox && data.perBox!=null) perBox.value=data.perBox;
+      if (data.doorW!=null) doorW.value=data.doorW;
+      if (data.doorH!=null) doorH.value=data.doorH;
+      if (data.winW!=null) winW.value=data.winW;
+      if (data.winH!=null) winH.value=data.winH;
+      if (Array.isArray(data.rooms)) state.rooms = data.rooms.map(clone);
+      renderRooms();
+    }
+    function makeBlankRoom(){
+      var r = { id: cfg.key+"r"+(++seq), name: "Room 1", length:"", width:"", height:"", doors:"", windows:"" };
+      r[cfg.secondSurface.field] = false;
+      if (cfg.wallHeightMode === "custom"){ r.wallHeight = ""; r.tileWalls = true; }
+      return r;
+    }
+    function clearAllRooms(){
+      state.rooms = [makeBlankRoom()];
+      renderRooms();
+    }
+    function summaryText(){
+      var unit = getUnitDimsM();
+      var lines = [];
+      lines.push(cfg.sheetTitle.toUpperCase());
+      var sizeLine = "Unit size: " + Math.round(unit.w*1000) + " × " + Math.round(unit.l*1000) + " mm | Wastage: " + wastage.value + "% | Cost per " + cfg.itemLabelCap.toLowerCase() + ": " + fmtCost(cost.value);
+      if (perBox) sizeLine += " | " + cfg.itemLabelCap.toLowerCase() + "s per box: " + perBox.value;
+      lines.push(sizeLine);
+      lines.push("");
+      var totalQty=0,totalCost=0,totalBoxes=0;
+      state.rooms.forEach(function(room){
+        var c = calcRoom(room);
+        var l = "- " + room.name + ": net " + c.netArea.toFixed(2) + " m2, " + c.qty + " " + (c.qty===1?cfg.itemLabelCap.toLowerCase():cfg.itemPlural) + ", " + fmtCost(c.cost);
+        if (cfg.hasBoxes) l += " (" + c.boxes + " box" + (c.boxes===1?"":"es") + ")";
+        lines.push(l);
+        totalQty+=c.qty; totalCost+=c.cost; if (cfg.hasBoxes) totalBoxes+=c.boxes;
+      });
+      if (!state.rooms.length) lines.push("(no rooms on this sheet)");
+      lines.push("");
+      var totalLine = "TOTAL: " + totalQty + " " + cfg.itemPlural + ", " + fmtCost(totalCost);
+      if (cfg.hasBoxes) totalLine += " (" + totalBoxes + " boxes)";
+      lines.push(totalLine);
+      return lines.join("\n");
+    }
+
+    // events
+    sizePreset.addEventListener("change", function(){ state.sizePreset = sizePreset.value; customRow.classList.toggle("show", state.sizePreset==="custom"); renderRooms(); });
+    customW.addEventListener("input", function(){ state.customW = Number(customW.value); renderRooms(); });
+    customL.addEventListener("input", function(){ state.customL = Number(customL.value); renderRooms(); });
+    [wastage, cost, doorW, doorH, winW, winH].forEach(function(el){ el.addEventListener("input", renderRooms); });
+    if (perBox) perBox.addEventListener("input", renderRooms);
+
+    addRoomBtn.addEventListener("click", function(){
+      if (state.rooms.length >= MAX_ROOMS) return;
+      state.rooms.push(makeRoom()); renderRooms();
+    });
+    armTwoTapConfirm(clearAllBtn, "Clear all", "Tap again to confirm", clearAllRooms);
+
+    roomsContainer.addEventListener("input", function(e){
+      var t = e.target, card = t.closest(".room-card"); if (!card) return;
+      var room = state.rooms.filter(function(r){ return r.id===card.dataset.id; })[0]; if (!room) return;
+      var f = t.dataset.field; if (!f) return;
+      if (t.type==="checkbox"){ room[f]=t.checked; }
+      else if (f==="name"){ room[f]=t.value; }
+      else { room[f] = t.value===""?0:Number(t.value); }
+      renderSummary();
+      updateRoomOutputOnly(card, room);
+    });
+    roomsContainer.addEventListener("click", function(e){
+      if (e.target.dataset.action==="remove"){
+        var card = e.target.closest(".room-card");
+        state.rooms = state.rooms.filter(function(r){ return r.id!==card.dataset.id; });
+        renderRooms();
+      }
+    });
+
+    renderRooms();
+    return { renderRooms: renderRooms, getState: getState, setState: setState, clearAllRooms: clearAllRooms, summaryText: summaryText };
+  }
+
+  /* ============ Plaster sheet (coverage-based, no tiling) ============ */
+  function createPlasterSheet(){
+    var seq = 0;
+    var bagSize=$id("p-bagSize"), refCov=$id("p-refCoverage"), refThick=$id("p-refThickness"), appThick=$id("p-appThickness");
+    var wastage=$id("p-wastage"), cost=$id("p-cost");
+    var doorW=$id("p-doorW"), doorH=$id("p-doorH"), winW=$id("p-winW"), winH=$id("p-winH");
+    var roomsContainer=$id("p-roomsContainer"), roomCountEl=$id("p-roomCount"), addRoomBtn=$id("p-addRoom"), clearAllBtn=$id("p-clearAll");
+    var summaryTotals=$id("p-summaryTotals"), breakdownBody=$id("p-breakdownBody");
+
+    function $id(id){ return document.getElementById(id); }
+
+    var rooms = [];
+    function makeRoom(name){ seq++; return {id:"pr"+seq, name:name||("Room "+seq), length:4.0,width:3.5,height:2.4,doors:1,windows:1,ceiling:true}; }
+    rooms.push(makeRoom("Bathroom")); rooms.push(makeRoom("Hallway"));
+
+    function effectiveCoverage(){
+      var rc = Math.max(0.01, num(refCov.value,10));
+      var rt = Math.max(0.01, num(refThick.value,2));
+      var at = Math.max(0.01, num(appThick.value,2));
+      return rc * (rt/at);
+    }
+
+    function calcRoom(room){
+      var wastageFrac = Math.max(0, num(wastage.value,10))/100;
+      var L=Math.max(0,num(room.length)), W=Math.max(0,num(room.width)), H=Math.max(0,num(room.height));
+      var perimeter = 2*(L+W);
+      var doorArea = Math.max(0,num(doorW.value))*Math.max(0,num(doorH.value));
+      var winArea = Math.max(0,num(winW.value))*Math.max(0,num(winH.value));
+      var openingsArea = num(room.doors)*doorArea + num(room.windows)*winArea;
+      var wallGross = perimeter*H;
+      openingsArea = Math.min(openingsArea, wallGross*0.9);
+      var wallNet = Math.max(wallGross-openingsArea,0);
+      var ceilNet = room.ceiling ? L*W : 0;
+      var netArea = wallNet+ceilNet;
+      var wastageArea = netArea*wastageFrac;
+      var grossArea = netArea+wastageArea;
+      var cov = effectiveCoverage();
+      var bags = Math.ceil(grossArea/cov);
+      var costEach = Math.max(0,num(cost.value));
+      var totalCost = bags*costEach;
+      var weightKg = bags*Math.max(0,num(bagSize.value,25));
+      return {perimeter:perimeter,wallGross:wallGross,openingsArea:openingsArea,wallNet:wallNet,ceilNet:ceilNet,
+        netArea:netArea,wastageArea:wastageArea,grossArea:grossArea,coverage:cov,bags:bags,cost:totalCost,weightKg:weightKg};
+    }
+
+    function figuresHtml(calc){
+      return '<div class="figures-grid">' +
+        '<div class="figure"><div class="flabel">Net area</div><div class="fval">'+fmtArea(calc.netArea)+'</div></div>' +
+        '<div class="figure"><div class="flabel">Wastage allowance</div><div class="fval">'+fmtArea(calc.wastageArea)+'</div></div>' +
+        '<div class="figure"><div class="flabel">Gross area</div><div class="fval">'+fmtArea(calc.grossArea)+'</div></div>' +
+        '<div class="figure qty"><div class="flabel">Bags required</div><div class="fval">'+fmtNum(calc.bags)+'</div></div>' +
+        '<div class="figure"><div class="flabel">Total weight</div><div class="fval">'+fmtNum(calc.weightKg)+' kg</div></div>' +
+        '<div class="figure"><div class="flabel">Coverage used</div><div class="fval">'+calc.coverage.toFixed(2)+' m²/bag</div></div>' +
+        '<div class="figure cost full"><div class="flabel">Estimated cost</div><div class="fval">'+fmtCost(calc.cost)+'</div></div>' +
+        '</div>';
+    }
+
+    function noteHtml(room, calc){
+      var wallsNote = 'Walls: '+calc.wallGross.toFixed(2)+' m² gross − '+calc.openingsArea.toFixed(2)+' m² openings = '+calc.wallNet.toFixed(2)+' m² net.';
+      var ceilNote = room.ceiling ? ' Ceiling: '+calc.ceilNet.toFixed(2)+' m² included.' : ' Ceiling not included.';
+      return '<div class="diagram-wrap"><div class="diagram-caption" style="font-size:12px;line-height:1.6;">'+wallsNote+ceilNote+
+        ' No layout optimisation applies here — plaster is trowelled on wet, so this sheet uses gross area ÷ coverage per bag directly (see methodology below).</div></div>';
+    }
+
+    function roomInputsHtml(room){
+      return (
+        '<div class="field-sm"><label>Length (m)</label><input type="number" data-field="length" value="'+room.length+'" min="0" step="0.01"></div>' +
+        '<div class="field-sm"><label>Width (m)</label><input type="number" data-field="width" value="'+room.width+'" min="0" step="0.01"></div>' +
+        '<div class="field-sm"><label>Height (m)</label><input type="number" data-field="height" value="'+room.height+'" min="0" step="0.01"></div>' +
+        '<div class="field-sm"><label>Doors (qty)</label><input type="number" data-field="doors" value="'+room.doors+'" min="0" step="1"></div>' +
+        '<div class="field-sm"><label>Windows (qty)</label><input type="number" data-field="windows" value="'+room.windows+'" min="0" step="1"></div>' +
+        '<div class="toggles-row"><label class="check-field"><input type="checkbox" data-field="ceiling" '+(room.ceiling?"checked":"")+'> Skim the ceiling too</label></div>'
+      );
+    }
+
+    function renderRooms(){
+      roomCountEl.textContent = rooms.length + " / " + MAX_ROOMS;
+      addRoomBtn.disabled = rooms.length >= MAX_ROOMS;
+      roomsContainer.innerHTML = rooms.map(function(room, idx){
+        var calc = calcRoom(room);
+        return '<div class="room-card" data-id="'+room.id+'">' +
+          '<div class="room-card-header"><span class="room-index">R'+(idx+1)+'</span>' +
+          '<div class="room-name-wrap"><input class="room-name" type="text" data-field="name" value="'+escapeHtml(room.name)+'" aria-label="Room name" autocomplete="off" enterkeyhint="done"><span class="edit-icon" aria-hidden="true">✎</span></div>' +
+          '<button class="remove-room" data-action="remove">Remove</button></div>' +
+          '<div class="room-inputs">'+roomInputsHtml(room)+'</div>' +
+          '<div class="room-output">'+noteHtml(room,calc)+figuresHtml(calc)+'</div>' +
+        '</div>';
+      }).join("");
+      renderSummary();
+    }
+
+    function updateRoomOutputOnly(card, room){
+      var calc = calcRoom(room);
+      var out = card.querySelector(".room-output");
+      out.innerHTML = noteHtml(room,calc) + figuresHtml(calc);
+    }
+
+    function renderSummary(){
+      var totalNet=0,totalWaste=0,totalGross=0,totalBags=0,totalCost=0;
+      var rows = rooms.map(function(room){
+        var c = calcRoom(room);
+        totalNet+=c.netArea; totalWaste+=c.wastageArea; totalGross+=c.grossArea; totalBags+=c.bags; totalCost+=c.cost;
+        return '<tr><td>'+escapeHtml(room.name)+'</td><td>'+c.netArea.toFixed(2)+'</td><td>'+c.bags+'</td><td>'+fmtCost(c.cost)+'</td></tr>';
+      });
+      breakdownBody.innerHTML = rows.join("") || '<tr><td colspan="4" style="font-family:Inter,sans-serif;color:var(--ink-faint);">No rooms yet</td></tr>';
+      summaryTotals.innerHTML =
+        '<div class="stotal"><div class="flabel">Net area</div><div class="fval">'+fmtArea(totalNet)+'</div></div>' +
+        '<div class="stotal"><div class="flabel">Wastage allowance</div><div class="fval">'+fmtArea(totalWaste)+'</div></div>' +
+        '<div class="stotal"><div class="flabel">Gross area</div><div class="fval">'+fmtArea(totalGross)+'</div></div>' +
+        '<div class="stotal headline"><div><div class="flabel">Bags to buy</div></div><div class="fval">'+fmtNum(totalBags)+'</div></div>' +
+        '<div class="stotal headline cost-headline"><div><div class="flabel">Total estimated cost</div></div><div class="fval">'+fmtCost(totalCost)+'</div></div>';
+      if (window.__onSheetTotals) window.__onSheetTotals("plaster", totalBags, totalCost, "Bags");
+      triggerAutosave();
+    }
+
+    function clone(o){ var c={}; for (var k in o){ if (o.hasOwnProperty(k)) c[k]=o[k]; } return c; }
+
+    function getState(){
+      return {
+        bagSize:bagSize.value, refCoverage:refCov.value, refThickness:refThick.value, appThickness:appThick.value,
+        wastage:wastage.value, cost:cost.value,
+        doorW:doorW.value, doorH:doorH.value, winW:winW.value, winH:winH.value,
+        rooms: rooms.map(clone)
+      };
+    }
+    function setState(data){
+      if (!data) return;
+      if (data.bagSize!=null) bagSize.value=data.bagSize;
+      if (data.refCoverage!=null) refCov.value=data.refCoverage;
+      if (data.refThickness!=null) refThick.value=data.refThickness;
+      if (data.appThickness!=null) appThick.value=data.appThickness;
+      if (data.wastage!=null) wastage.value=data.wastage;
+      if (data.cost!=null) cost.value=data.cost;
+      if (data.doorW!=null) doorW.value=data.doorW;
+      if (data.doorH!=null) doorH.value=data.doorH;
+      if (data.winW!=null) winW.value=data.winW;
+      if (data.winH!=null) winH.value=data.winH;
+      if (Array.isArray(data.rooms)) rooms = data.rooms.map(clone);
+      renderRooms();
+    }
+    function clearAllRooms(){
+      rooms = [{id:"pr"+(++seq), name:"Room 1", length:"", width:"", height:"", doors:"", windows:"", ceiling:false}];
+      renderRooms();
+    }
+    function summaryText(){
+      var lines = [];
+      lines.push("MULTI-FINISH PLASTER");
+      lines.push("Bag: " + bagSize.value + " kg, covers " + refCov.value + " m2 at " + refThick.value + " mm | Applying at " + appThick.value + " mm | Wastage: " + wastage.value + "% | Cost per bag: " + fmtCost(cost.value));
+      lines.push("");
+      var totalBags=0,totalCost=0,totalWeight=0;
+      rooms.forEach(function(room){
+        var c = calcRoom(room);
+        lines.push("- " + room.name + ": net " + c.netArea.toFixed(2) + " m2, " + c.bags + " bag" + (c.bags===1?"":"s") + " (" + c.weightKg + " kg), " + fmtCost(c.cost));
+        totalBags+=c.bags; totalCost+=c.cost; totalWeight+=c.weightKg;
+      });
+      if (!rooms.length) lines.push("(no rooms on this sheet)");
+      lines.push("");
+      lines.push("TOTAL: " + totalBags + " bags (" + totalWeight + " kg), " + fmtCost(totalCost));
+      return lines.join("\n");
+    }
+
+    [bagSize,refCov,refThick,appThick,wastage,cost,doorW,doorH,winW,winH].forEach(function(el){ el.addEventListener("input", renderRooms); });
+    addRoomBtn.addEventListener("click", function(){ if (rooms.length>=MAX_ROOMS) return; rooms.push(makeRoom()); renderRooms(); });
+    armTwoTapConfirm(clearAllBtn, "Clear all", "Tap again to confirm", clearAllRooms);
+    roomsContainer.addEventListener("input", function(e){
+      var t=e.target, card=t.closest(".room-card"); if(!card) return;
+      var room = rooms.filter(function(r){ return r.id===card.dataset.id; })[0]; if(!room) return;
+      var f=t.dataset.field; if(!f) return;
+      if (t.type==="checkbox"){ room[f]=t.checked; } else if (f==="name"){ room[f]=t.value; } else { room[f]=t.value===""?0:Number(t.value); }
+      renderSummary(); updateRoomOutputOnly(card, room);
+    });
+    roomsContainer.addEventListener("click", function(e){
+      if (e.target.dataset.action==="remove"){
+        var card=e.target.closest(".room-card");
+        rooms = rooms.filter(function(r){ return r.id!==card.dataset.id; });
+        renderRooms();
+      }
+    });
+
+    renderRooms();
+    return { renderRooms: renderRooms, getState: getState, setState: setState, clearAllRooms: clearAllRooms, summaryText: summaryText };
+  }
+
+  /* ============ Board & tile presets ============ */
+  var BOARD_PRESETS = [
+    {id:"2400x1200",w:1200,l:2400},{id:"2700x1200",w:1200,l:2700},
+    {id:"3000x1200",w:1200,l:3000},{id:"1800x900",w:900,l:1800},{id:"custom",w:1200,l:2400}
+  ];
+  var TILE_PRESETS = [
+    {id:"100x200",w:100,l:200},{id:"200x200",w:200,l:200},{id:"250x400",w:250,l:400},
+    {id:"300x300",w:300,l:300},{id:"300x600",w:300,l:600},{id:"600x600",w:600,l:600},{id:"custom",w:300,l:300}
+  ];
+
+  /* ============ Mobile summary bar (shared across sheets) ============ */
+  var activeTab = "boards";
+  var lastTotals = { boards:{qty:0,cost:0,label:"Boards"}, tiles:{qty:0,cost:0,label:"Tiles"}, plaster:{qty:0,cost:0,label:"Bags"} };
+  var mbLabel=document.getElementById("mbLabel"), mbQty=document.getElementById("mbQty"), mbCost=document.getElementById("mbCost");
+  function refreshMobileBar(){
+    var t = lastTotals[activeTab];
+    mbLabel.textContent = t.label; mbQty.textContent = fmtNum(t.qty); mbCost.textContent = fmtCost(t.cost);
+  }
+  window.__onSheetTotals = function(key, qty, cost, label){ lastTotals[key] = {qty:qty,cost:cost,label:label}; if (key===activeTab) refreshMobileBar(); };
+
+  /* triggerAutosave starts as a no-op; renderSummary() in each controller calls it
+     unconditionally, and we swap in the real debounced version once controllers
+     and storage helpers both exist (see persistence engine below). */
+  var triggerAutosave = function(){};
+
+  /* ============ Boot the three sheets ============ */
+  var boardsCtrl = createTilingSheet({
+    key:"b", prefix:"#b", presets: BOARD_PRESETS, itemLabelCap:"Board", itemPlural:"boards", hasBoxes:false,
+    wallHeightMode:"full", capOpeningsByHeight:false, sheetTitle:"Plasterboard",
+    secondSurface:{field:"ceiling", label:"Include ceiling", defaultOn:false, diagramLabel:"Ceiling"},
+    seedNames:["Bedroom","Living room"],
+    onTotals:function(qty,cost){ window.__onSheetTotals("boards", qty, cost, "Boards"); }
+  });
+
+  var tilesCtrl = createTilingSheet({
+    key:"t", prefix:"#t", presets: TILE_PRESETS, itemLabelCap:"Tile", itemPlural:"tiles", hasBoxes:true,
+    wallHeightMode:"custom", capOpeningsByHeight:true, sheetTitle:"Tiles",
+    secondSurface:{field:"tileFloor", label:"Tile the floor", defaultOn:false, diagramLabel:"Floor"},
+    seedNames:["Bathroom","Kitchen splashback"],
+    onTotals:function(qty,cost){ window.__onSheetTotals("tiles", qty, cost, "Tiles"); }
+  });
+
+  var plasterCtrl = createPlasterSheet();
+
+  /* ============================================================
+     Persistence + export engine.
+     Two independent mechanisms, because file-preview apps (e.g. Documents
+     by Readdle, Mail/Messages attachment previews) often open a local HTML
+     file in a sandboxed or non-persistent WebView, so localStorage may not
+     survive the app closing even though it works fine in a real browser tab:
+       1. localStorage autosave — works when the viewer allows it, silent.
+       2. Manual JSON backup file (Save/Load) — always works, since it's
+          just a normal file download/upload, independent of any storage API.
+     ============================================================ */
+  var STORAGE_KEY = "materials-estimator-v1";
+  var toastEl = document.getElementById("toast");
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 2600);
+  }
+
+  function debounce(fn, wait){
+    var t;
+    return function(){
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function(){ fn.apply(null, args); }, wait);
+    };
+  }
+
+  function storageAvailable(){
+    try {
+      var k = "__storage_test__";
+      window.localStorage.setItem(k, "1");
+      window.localStorage.removeItem(k);
+      return true;
+    } catch (e){ return false; }
+  }
+  var canPersist = storageAvailable();
+
+  var saveStatusEl = document.getElementById("saveStatus");
+
+  function buildPersistPayload(){
+    return {
+      v: 1,
+      savedAt: new Date().toISOString(),
+      boards: boardsCtrl.getState(),
+      tiles: tilesCtrl.getState(),
+      plaster: plasterCtrl.getState()
+    };
+  }
+  function applyPersistPayload(data){
+    if (!data) return false;
+    var applied = false;
+    if (data.boards){ boardsCtrl.setState(data.boards); applied = true; }
+    if (data.tiles){ tilesCtrl.setState(data.tiles); applied = true; }
+    if (data.plaster){ plasterCtrl.setState(data.plaster); applied = true; }
+    return applied;
+  }
+
+  function realAutosave(){
+    if (!canPersist) return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistPayload()));
+      var now = new Date();
+      var hh = ("0"+now.getHours()).slice(-2), mm = ("0"+now.getMinutes()).slice(-2);
+      saveStatusEl.textContent = "Saved " + hh + ":" + mm;
+    } catch (e){ /* quota or sandbox errors: silently skip */ }
+  }
+
+  function loadFromLocalStorage(){
+    if (!canPersist) return false;
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      return applyPersistPayload(data);
+    } catch (e){ return false; }
+  }
+
+  function combinedSummaryText(){
+    var lines = [];
+    lines.push("MATERIALS ESTIMATE");
+    lines.push(new Date().toLocaleDateString("en-GB", {weekday:"long", year:"numeric", month:"long", day:"numeric"}));
+    lines.push("");
+    lines.push(boardsCtrl.summaryText());
+    lines.push("");
+    lines.push(tilesCtrl.summaryText());
+    lines.push("");
+    lines.push(plasterCtrl.summaryText());
+    return lines.join("\n");
+  }
+
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly","");
+    ta.style.position = "fixed"; ta.style.left = "-9999px";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e){ ok = false; }
+    document.body.removeChild(ta);
+    showToast(ok ? "Copied to clipboard" : "Couldn't copy automatically in this viewer");
+  }
+  function copySummary(){
+    var text = combinedSummaryText();
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ showToast("Copied to clipboard"); }, function(){ fallbackCopy(text); });
+    } else { fallbackCopy(text); }
+  }
+
+  document.getElementById("btnCopy").addEventListener("click", copySummary);
+
+  // Restore a previous session if this viewer supports localStorage, then
+  // switch autosave on for real (silent — no button, just runs in the background).
+  var restored = loadFromLocalStorage();
+  triggerAutosave = debounce(realAutosave, 400);
+  if (restored) { showToast("Restored your last session"); }
+  realAutosave();
+
+  /* ============ Tab switching ============ */
+  var tabBtns = Array.prototype.slice.call(document.querySelectorAll(".tab-btn"));
+  var sheets = { boards:document.getElementById("sheet-boards"), tiles:document.getElementById("sheet-tiles"), plaster:document.getElementById("sheet-plaster") };
+  tabBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      activeTab = btn.dataset.tab;
+      tabBtns.forEach(function(b){ b.setAttribute("aria-selected", b===btn ? "true":"false"); });
+      Object.keys(sheets).forEach(function(k){ sheets[k].hidden = (k!==activeTab); });
+      refreshMobileBar();
+    });
+  });
+
+  /* ============ Mobile bottom sheet toggle ============ */
+  var mbToggle = document.getElementById("mbToggle");
+  mbToggle.addEventListener("click", function(){
+    var panel = document.getElementById(activeTab==="boards"?"b-summaryPanel":activeTab==="tiles"?"t-summaryPanel":"p-summaryPanel");
+    var expanded = panel.classList.toggle("expanded");
+    mbToggle.textContent = expanded ? "Hide breakdown" : "View breakdown";
+    // collapse the other panels so only the active one can show
+    ["b-summaryPanel","t-summaryPanel","p-summaryPanel"].forEach(function(id){
+      if (id !== panel.id) document.getElementById(id).classList.remove("expanded");
+    });
+  });
+
+  refreshMobileBar();
+})();
+</script>
+</body>
+</html>
